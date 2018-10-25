@@ -3,13 +3,19 @@
 <html lang= "en-US">
 	<head>
         <!-- Import Vue.js -->
-        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+        <script src="vue.js"></script>
+	</head>
+  <body>
+        <h1>Data Binding is fun!</h1>
+
+        <div id="app">
+            <input type="text" v-model="datboi"/>
+            <p>
+                {{datboi}}
+            </p>
+        </div>
 
         <!-- Import local js -->
         <script src="main.js"> </script>
-
-	</head>
-  <body>
-      <h1>Nothing to see here!</h1>
   </body>
 </html>
