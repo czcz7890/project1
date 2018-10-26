@@ -6,5 +6,5 @@ last modified: 10/25/2018
 ================
 Description
 ================
-Encrypt multiple files into one file
+Encrypt multiple files into one file by concatenating the encoded files and encrypting it together
 
