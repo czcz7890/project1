@@ -1,17 +1,10 @@
-# project1
+Name: UniversalEncryption
+Author:Dong Soo Chung and Bilawal Raja
+Version: 0.1a
+last modified: 10/25/2018
 
-<!DOCTYPE html>
-<html lang= "en-US">
-	<head>
-		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"> //src is the directory of vuejs
-		</script> 
-	</head>
-  <body>
-  
-  //encryption
-  <script>
-  
-  </script>
+================
+Description
+================
+Encrypt multiple files into one file
 
-  </body>
-</html>
