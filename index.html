@@ -5,17 +5,21 @@
         <!-- Import Vue.js -->
         <script src="vue.js"></script>
 	</head>
-  <body>
-        <h1>Data Binding is fun!</h1>
+	<body>
+        	<h1>Data Binding is fun!</h1>
 
-        <div id="app">
-            <input type="text" v-model="datboi"/>
-            <p>
-                {{datboi}}
-            </p>
-        </div>
+        	<div id="app">
+            		<input type="text" v-model="datboi"/>
+            		<p>{{datboi}}</p>
+        	</div>
+	
+	  	<div id = "envm">
+			<p>{{passToKey(pass)}}</p>
+		</div>
+		
+	
 
-        <!-- Import local js -->
-        <script src="main.js"> </script>
-  </body>
+        	<!-- Import local js -->
+        	<script src="main.js"> </script>
+  	</body>
 </html>
