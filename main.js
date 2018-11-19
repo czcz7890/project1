@@ -81,3 +81,35 @@ var envm = new Vue({
 
         }
 })
+
+//function in javascript to be converted to vue
+function XOR(s1, s2){
+    var base64Table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+    var str1 = new String(s1);
+    var str2 = new String(s2);
+    var bit1;
+    var bit2;
+    var xored = "";
+    var result = "";
+    
+    for(var i = 0; i < str1.length; i++){     //assuming s1 and s2 is of same size
+        bit1 = base64Table.indexOf(str1.charAt(i));
+        bit2 = base64Table.indexOf(str2.charAt(i));
+           
+        for(var binaryIndex = 0; binaryIndex < 6; binaryIndex++){
+            if(((bit1 % 2 >= 1)&&(bit2 % 2 < 1))||(bit1 % 2 < 1)&&(bit2 % 2 >= 1)){
+                xored += "1";    
+            }else{
+                xored += "0";
+            }
+            bit1 = Math.floor(bit1 / 2);
+            bit2 = Math.floor(bit2 / 2);
+        }
+        
+        xored = xored.split("").reverse().join("");    //is string an array of char in javascript?
+        result += xored;
+        xored = "";
+        
+    }
+    return result;
+}
