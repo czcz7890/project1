@@ -24,10 +24,10 @@ var envm = new Vue({
             var hash = "12345678";
             var temp = "";
             var cipher;
-            for(var i = 0; i < s.length; i++){
-                key += Number(s.charCodeAt(i)).toString(16);
+            for(var i = 0; i < str.length; i++){
+                key += Number(str.charCodeAt(i)).toString(16);
             }
-            for(var i = s.length; i < 32; i++){
+            for(var i = str.length; i < 32; i++){
                 key += "00";
             }
             temp = key.slice(0, 7);
@@ -45,34 +45,7 @@ var envm = new Vue({
         },
             
         XOR: function(s1, s2){
-            var bit1;
-            var bit2;
-            var xored = "";
-            while(var i < s1.length){
-                bit1 = s1.charAt(i);
-                bit2 = s2.charAt(i);
-                var tableIndex = 0;
-                while(bit1 != base64Table(tableIndex)){
-                    tableIndex++;   
-                }
-                bit1 = tableIndex;
-                tableIndex = 0;
-                while(bit2 != base64Table(tableIndex)){
-                    tableIndex++;
-                }
-                bit2 = tableIndex;
-                for(var binaryIndex = 0; binaryIndex < 6; binaryIndex++){
-                    if(((bit1%2 >= 1)&&(bit2%2 < 1))||(bit1%2 < 1)&&(bit2%2 >= 1)){
-                        xored += "1";    
-                    }else{
-                        xored += "0";
-                    }
-                    bit1 = bit1/2;
-                    bit2 = bit2/2;
-                }
-                xored = xored.reverse();    //is string an array of char in javascript?
-            }
-            return xored;
+            
         },
         hashFunction: function(h){
 
@@ -83,6 +56,31 @@ var envm = new Vue({
 })
 
 //function in javascript to be converted to vue
+function passToKey(str){
+    //this function converts password to cryptographic key
+    let key = "";
+    var hash = "12345678";
+    var temp = "";
+    var cipher;
+    for(var i = 0; i < str.length; i++){
+        key += Number(str.charCodeAt(i)).toString(16);
+    }
+    for(var i = str.length; i < 32; i++){
+        key += "00";
+    }
+    temp = key.slice(0, 7);
+    cipher = encrypt(temp, hash);
+    key = key.replace(temp, cipher);
+    hash = XOR(cipher, hash);
+    for(var i = 1; i < 8; i++){
+        temp = key.slice(8*i, 8*i+7);
+        cipher = encrypt(temp, hash);
+        key = key.replace(temp, cipher);
+        hash = XOR(cipher, hash);
+    }
+    return key;
+}
+}
 function XOR(s1, s2){
     var base64Table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
     var str1 = new String(s1);
@@ -106,10 +104,16 @@ function XOR(s1, s2){
             bit2 = Math.floor(bit2 / 2);
         }
         
-        xored = xored.split("").reverse().join("");    //is string an array of char in javascript?
+        xored = xored.split("").reverse().join("");   
         result += xored;
         xored = "";
         
     }
     return result;
+}
+function encrypt(key, text){
+    //steps:input whitening
+    //for each 64 bits of plain text, xor with 2 keys of 64 bits each 
+    var result = "";
+    var t0 = text.charAt
 }
