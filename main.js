@@ -56,60 +56,62 @@ var envm = new Vue({
 })
 
 //function in javascript to be converted to vue
-function passToKey(str){
-    //this function converts password to cryptographic key
-    let key = "";
-    var hash = "12345678";
-    var temp = "";
-    var cipher;
-    for(var i = 0; i < str.length; i++){
-        key += Number(str.charCodeAt(i)).toString(16);
+//password to key
+function passToKey(){   //take user password and set it to pass
+    //generate subkeys s0 and s1
+    var line = 0;
+    var left, right;
+    //matrix multiplicatio of GF(2^8)
+    for(var i = 0; i < 4; i++){
+        for(var j = 0; j < 8; j++){
+           left = base64Table.indexOf(pass.charAt(j));
+           right = base64Table.indexOf(rsmatrix[i,j]);
+           for(var k = 0; k < 32; k++){
+               if(right & (1<<k)){
+                   line = line ^ (left << k);    
+               }
+           }
+        }
+        s0 += line + " ";
+        line = 0;
     }
-    for(var i = str.length; i < 32; i++){
-        key += "00";
+    for(var i = 0; i < 4; i++){
+        for(var j = 8; j < 16; j++){
+           left = base64Table.indexOf(pass.charAt(j));
+           right = base64Table.indexOf(rsmatrix[i,j]);
+           for(var k = 0; k < 32; k++){
+               if(right & (1<<k)){
+                   line = line ^ (left << k);    
+               }
+           }
+        }
+        s1 += line + " ";
+        line = 0;
     }
-    temp = key.slice(0, 7);
-    cipher = encrypt(temp, hash);
-    key = key.replace(temp, cipher);
-    hash = XOR(cipher, hash);
-    for(var i = 1; i < 8; i++){
-        temp = key.slice(8*i, 8*i+7);
-        cipher = encrypt(temp, hash);
-        key = key.replace(temp, cipher);
-        hash = XOR(cipher, hash);
-    }
-    return key;
+    //generate subkeys K
+    var meven = pass.slice(0,4) + pass.slice(8, 12);
+    var modd = pass.slice(4, 8) + pass.slice(12, 16);
+    //sbox,mds,pht
 }
-}
-function XOR(s1, s2){
-    var base64Table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-    var str1 = new String(s1);
-    var str2 = new String(s2);
+function xor(top, bot){
     var bit1;
     var bit2;
-    var xored = "";
+    var xored = [];
     var result = "";
-    
-    for(var i = 0; i < str1.length; i++){     //assuming s1 and s2 is of same size
-        bit1 = base64Table.indexOf(str1.charAt(i));
-        bit2 = base64Table.indexOf(str2.charAt(i));
+
+    for(var i = 0; i < top.length; i++){     //assuming top and bot is of same size
+        bit1 = base64Table.indexOf(top.charAt(i));
+        bit2 = base64Table.indexOf(bot.charAt(i));
            
-        for(var binaryIndex = 0; binaryIndex < 6; binaryIndex++){
-            if(((bit1 % 2 >= 1)&&(bit2 % 2 < 1))||(bit1 % 2 < 1)&&(bit2 % 2 >= 1)){
-                xored += "1";    
-            }else{
-                xored += "0";
-            }
-            bit1 = Math.floor(bit1 / 2);
-            bit2 = Math.floor(bit2 / 2);
-        }
-        
-        xored = xored.split("").reverse().join("");   
-        result += xored;
-        xored = "";
-        
+        xored[i] = bit1 ^ bit2;
     }
-    return result;
+    for(var r = 0;r < xored.length; r++){
+        result += base64Table.charAt(xored[r]);
+    }
+    return result;  //return type is decimal
+}
+function sbox(){
+
 }
 function encrypt(key, text){
     //steps:input whitening
