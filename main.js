@@ -57,65 +57,307 @@ var envm = new Vue({
 
 //function in javascript to be converted to vue
 //password to key
-function passToKey(){   //take user password and set it to pass
-    //generate subkeys s0 and s1
+function passToKey(key){   //take user password in string and set it to pass
+    //generate subkeys s0 and s1 of size 32 bits (4 chars) each
+    pass = key;
     var line = 0;
+    var genKey;
     var left, right;
-    //matrix multiplicatio of GF(2^8)
+    //matrix multiplication of GF(2^8)
     for(var i = 0; i < 4; i++){
         for(var j = 0; j < 8; j++){
-           left = base64Table.indexOf(pass.charAt(j));
-           right = base64Table.indexOf(rsmatrix[i,j]);
-           for(var k = 0; k < 32; k++){
-               if(right & (1<<k)){
-                   line = line ^ (left << k);    
-               }
-           }
+            left = pass.charCodeAt(j);
+            right = rsmatrix[i][j];
+            line = (line + gfmult(left, right))% 128;
         }
         s0 += line + " ";
         line = 0;
     }
     for(var i = 0; i < 4; i++){
         for(var j = 8; j < 16; j++){
-           left = base64Table.indexOf(pass.charAt(j));
-           right = base64Table.indexOf(rsmatrix[i,j]);
-           for(var k = 0; k < 32; k++){
-               if(right & (1<<k)){
-                   line = line ^ (left << k);    
-               }
-           }
+            left = pass.charCodeAt(j);
+            right = rsmatrix[i][j];
+            line = (line + gfmult(left, right))% 128;
         }
         s1 += line + " ";
         line = 0;
     }
     //generate subkeys K
-    var meven = pass.slice(0,4) + pass.slice(8, 12);
-    var modd = pass.slice(4, 8) + pass.slice(12, 16);
+    var m0 = pass.slice(0,4);
+    var m1 = pass.slice(8, 12);
+    var m2 = pass.slice(4, 8);
+    var m3 = pass.slice(12, 16);
+    meven = pass.slice(0,4) + pass.slice(8, 12);
+    modd = pass.slice(4, 8) + pass.slice(12, 16);
     //sbox,mds,pht
+    for(var i = 0; i < 20; i++){
+        genKey = pht(sbox(2*i*16777216+2*i*65536+2*i*256+2*i, m2, m0),
+                    rotl(sbox(2*(i+1)*16777216+2*(i+1)*65536+2*(i+1)*256+2*(i+1), m3, m1)), 8, 32);
+        keybox[i] = genkey[i];
+        keybox[i+1] = rotl(genKey[i+1],9,32);
+    }
+}
+function gfmult(a, b){  //input is code for ascii char
+    var mult = 0;
+    while(a && b){
+        if(a & 1){
+            mult = mult ^ b;    //add
+        }
+       if(b & 0x80){//modulo process disregards all bits that overflows after 8 bit
+           b = (b << 1) ^ 0x11D;  //modulo primitive polynomial (8,4,3,2,0)
+        }else{
+            b <<= 1;
+        }
+        a >>= 1; //division by 2
+    }
+    return mult % 128;
 }
 function xor(top, bot){
     var bit1;
     var bit2;
-    var xored = [];
     var result = "";
 
     for(var i = 0; i < top.length; i++){     //assuming top and bot is of same size
-        bit1 = base64Table.indexOf(top.charAt(i));
-        bit2 = base64Table.indexOf(bot.charAt(i));
+        bit1 = top.charCodeAt(i);
+        bit2 = bot.charCodeAt(i);
            
-        xored[i] = bit1 ^ bit2;
+        result += String.fromCharCode(bit1 ^ bit2);
     }
-    for(var r = 0;r < xored.length; r++){
-        result += base64Table.charAt(xored[r]);
-    }
-    return result;  //return type is decimal
+    return result;  //return type is ascii
 }
-function sbox(){
+function pht(a, b){ //need testing, input is integer
+    //pseudo-hadamard transform, inputs must be of equal length
+    return [(a + b) % 4294967296,rotl((a+2*b)% 4294967296, 9, 32)];    //2exp32
 
 }
-function encrypt(key, text){
-    //steps:input whitening
-    //for each 64 bits of plain text, xor with 2 keys of 64 bits each 
-    var result = "";
-    var t0 = text.charAt
+function mds(y){//input is array of 4 integers
+    var z = [0,0,0,0];
+    for(var i = 0; i < 4; i++){
+        for (var j = 0; j < 4; j++){
+            z[i] = (z[i]+ gfmult(mdsMatrix[i][j], y[i]))%128;   //wip
+        }
+    }
+    return z[0]+(z[1] << 8)+(z[2] << 16)+(z[3] << 24);
+}
+function b64ToBinary(base){ //base is 1 char in b64table, returns 6 bit binary
+    var temp = base64Table.indexOf(base.charAt(0));
+    var bit = "";
+    for(var binaryIndex = 0; binaryIndex < 6; binaryIndex++){
+        if(temp % 2 == 1){
+            bit += "1";
+        }else{
+            bit += "0";
+        }
+        temp = Math.floor(temp / 2);
+    }
+    return bit.split("").reverse().join("");
+}
+function rotr(n, shift, m){ //need testing
+    //rotate a number n by shift amount in mod m bit
+    var temp = 0;
+    var bitmod = Math.pow(2, m-1);
+    for(var i = 0; i < shift; i++){
+        if(n % 2 == 1){
+            temp = 1;
+        }else{
+            temp = 0;
+        }
+        n = Math.floor(n/2);
+        n += temp * bitmod;
+    }
+    return n;
+}
+function rotl(n, shift, m){ //need testing
+    //rotate a number n by shift amount in mod m bit
+    var temp = 0;
+    var bitmod = Math.pow(2, m-1); 
+    for(var i = 0; i < shift; i++){
+        if(n >= bitmod){ //n is at least 2^31, thus it contains 1 for the left most bit
+            temp = 1;
+        }else{
+            temp = 0;
+        }
+        n = n*2;
+        n += temp;
+    }
+    return n;
+}
+function sbox(text, subkey1, subkey2){  //text is ascii code
+    var bin = new Number(text).toString(2); //successfully stores binary number
+    while(bin.length < 32){
+        bin = "0"+bin;
+    }
+    var nibble, result = 0;
+    var a0, b0, a1, b1, a2, b2, a3, b3, a4, b4;
+    var y = [0,0,0,0];
+    
+    nibble = bin.substring(0, 8);
+    y[0] = q0Permutation(nibble);
+
+    nibble = bin.substring(8,16);
+    y[1] = q1Permutation(nibble);
+
+    nibble = bin.substring(16, 24);
+    y[2] = q0Permutation(nibble);
+
+    nibble = bin.substring(24, 32);
+    y[3] = q1Permutation(nibble);
+
+    for(var i = 0; i < 4; i++){
+        result += y[i] << (32-(8*i));
+    }
+
+    result = xor(result, subkey1);
+    
+    nibble = result.substring(0,8);
+    y[0] = q0Permutation(nibble);
+
+    nibble = result.substring(8, 16);
+    y[1] = q0Permutation(nibble);
+
+    nibble = result.substring(16, 24);
+    y[2] = q1Permutation(nibble);
+
+    nibble = result.substring(24, 32);
+    y[3] = q1Permutation(nibble);
+
+    result = "";
+    for(var i = 0; i < 4; i++){
+        result += y[i] << (32-(8*i));
+    }
+
+    result = xor(result, subkey2);
+
+    nibble = result.substring(0,8);
+    y[0] = q1Permutation(nibble);
+
+    nibble = result.substring(8, 16);
+    y[1] = q0Permutation(nibble);
+
+    nibble = result.substring(16, 24);
+    y[2] = q1Permutation(nibble);
+
+    nibble = result.substring(24, 32);
+    y[3] = q0Permutation(nibble);
+
+    result = "";
+    for(var i = 0; i < 4; i++){
+        result += y[i] << (32-(8*i));
+    }
+
+    result = mds(result);   //result is integer
+    return result;  //returns integer
+}
+function q0Permutation(nibble){
+    nibble = bin.substring(8*i, 8*i+8);
+    a0 = parseInt(nibble.substring(0, 4),2);
+    b0 = parseInt(nibble.substring(4, 8),2);
+    a1 = a0 ^ b0;
+    b1 = a0 ^ rotr(b0, 1, 4) ^ (8*a0)%16;
+        
+    a2 = t0Matrix[0][a1];
+    b2 = t0Matrix[1][b1];
+       
+    a3 = a2 ^ b2;
+    b3 = a2 ^rotr(b2, 1, 4) ^ (8*a2)%16;
+
+    a4 = t0Matrix[2][a3];
+    b4 = t0Matrix[3][b3];
+
+    return 16*b4+a4;
+}
+function q1Permutation(){
+    nibble = bin.substring(8*i, 8*i+8);
+    a0 = parseInt(nibble.substring(0, 4),2);
+    b0 = parseInt(nibble.substring(4, 8),2);
+    a1 = a0 ^ b0;
+    b1 = a0 ^ rotr(b0, 1, 4) ^ (8*a0)%16;
+        
+    a2 = t1Matrix[0][a1];
+    b2 = t1Matrix[1][b1];
+       
+    a3 = a2 ^ b2;
+    b3 = a2 ^rotr(b2, 1, 4) ^ (8*a2)%16;
+
+    a4 = t1Matrix[2][a3];
+    b4 = t1Matrix[3][b3];
+
+    return 16*b4+a4;
+}
+
+function ffunction(r0, r1, r){ //input is 2 ascii words
+    var top;
+    var bot;
+    var f0;
+    //function g
+
+    f0 = 
+    result = pht(top, bot);
+    result[0] = (result[0]+keybox[2*r+8])%4294967296;
+}
+
+
+function encrypt(key, text){    //text length is divisble by 4
+    //initial step:input whitening
+    //128 bit of text (32 char) is divided to 32 bits (8 char)
+    var result;
+    var coresult;
+    var top, bot, f0, f1;
+    var t0,t1,t2,t3;
+    var tarr = [];
+    var foutput = [];
+    var c2, c3;
+    
+    passToKey("jsnpI8960XiF1Ha4VMjIAg3OrmBli0jm");  //placeholder password
+    for(var i = 0; i < text.length; i += 4){
+        t0 = text.charCodeAt(i);
+        t1 = text.charCodeAt(i);
+        t2 = text.charCodeAt(i);
+        t3 = text.charCodeAt(i);
+        result[i/4] = (t0 ^ keybox[0])*Math.pow(2, 24);
+        result[i/4] += (t0 ^ keybox[0])*Math.pow(2, 16);
+        result[i/4] += (t0 ^ keybox[0])*Math.pow(2, 8);
+        result[i/4] += (t0 ^ keybox[0]);
+    }
+    //text is whitened and stored in result. result is array of 4 numbers
+    var t0, t1, t2, t3; //clear values in t's
+    //second step:
+    //function f
+    for(var r = 0; r < 16; r++){
+        //function g for R0
+        t0 = result[0] >> 24;
+        t1 = (result[0] << 8) >> 24;
+        t2 = (result[0] << 16) >> 24;
+        t3 = (result[0] << 24) >> 24;
+        tarr[0] = sbox(t0, keybox[2*r+8], keybox[2*r+9]);   //check if using correct sbox
+        tarr[1] = sbox(t1, keybox[2*r+8], keybox[2*r+9]);
+        tarr[2] = sbox(t2, keybox[2*r+8], keybox[2*r+9]);
+        tarr[3] = sbox(t3, keybox[2*r+8], keybox[2*r+9]);
+        top = mds(tarr);
+        //function g for R1
+        coresult = rotl(result[1], 8, 32);
+        t0 = coresult >> 24;
+        t1 = (coresult << 8) >> 24;
+        t2 = (coresult << 16) >> 24;
+        t3 = (coresult << 24) >> 24;
+        tarr[0] = sbox(t0, keybox[2*r+8], keybox[2*r+9]);   //check if using correct sbox
+        tarr[1] = sbox(t1, keybox[2*r+8], keybox[2*r+9]);
+        tarr[2] = sbox(t2, keybox[2*r+8], keybox[2*r+9]);
+        tarr[3] = sbox(t3, keybox[2*r+8], keybox[2*r+9]);
+        bot = mds(tarr);
+        
+        f0 = (top + bot + keybox[2*r+8])%4294967296;    //f0 and f1 is special case of pht
+        f1 = (a+2*b+keybox[2*r+8])% 4294967296;
+        foutput[r] = [f0,f1];   //f0 and f1 is integer
+        
+        c2 = rotr(f0 ^ result[2], 1, 32);
+        c3 = rotl(f1 ^ result[3], 1, 32);
+        result[0] = c2;
+        result[1] = c3;
+        result[2] = result[0];
+        result[3] = result[1];
+    }
+
+    //wip output whiteninig
+    return ""+result[0]+result[1]+result[2]+result[3];  //return string
 }
